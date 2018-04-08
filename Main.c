@@ -23,16 +23,18 @@ void WaitForInterrupt(void); // low power mode
 #include "Timer1.h"
 #include "Music.h"
 #include "../inc/tm4c123gh6pm.h"
-#include "ADCSWTrigger.h"
+#include "Sensor.h"
+#include "Timer2.h"
+#include "Sensor.h"
+#include "Display.h"
+#include "ST7735.h"
+#include "Display.h"
+#include "Globals.h"
 
 
 #define PF1 (*((volatile uint32_t *)0x40025008))
 
 Song global_Song;
-
-static Song BNB = {25,BeautyAndTheBeastL};
-static Song ML = {107,mary_lamb};
-static Song FF7 = {228, ff7_pre};
 
 //PortF_Init
 //initialize heartbeat using PF1
@@ -49,26 +51,69 @@ void PortF_Init(void) {
 	GPIO_PORTF_AMSEL_R = 0;						// disable analog functionality on PF
 }
 	
-	
-int main(void){
+void switchMain(void) {
 	DisableInterrupts();
 	PortF_Init();
 	PLL_Init(Bus80MHz);
-	DAC_Init(0x1000);
 	Switches_Init();
-	SysTick_Init();
-	Timer1_Init(&ProcessNote,F16HZ);
-	ADC0_InitSWTriggerSeq3_Ch9();
-	global_Song = ML;
-	
-	//Pause();
+	PF1 = 0x00;
 	EnableInterrupts();
 	
-	PF1 = 0x00;
+	while(1) {}
 	
+}
+
+void timerMain(void) {
+	DisableInterrupts();
+	PortF_Init();
+	PLL_Init(Bus80MHz);
+	Timer2_Init();
+	EnableInterrupts();
+	
+	while(1) {}
+}
+
+void digitsMain(void){
+	PLL_Init(Bus80MHz);                   // 80 MHz
+	ST7735_InitR(INITR_REDTAB);
+	displayDigits(10, 29);
+}
+
+void weatherMain(void){
+	PLL_Init(Bus80MHz);                   // 80 MHz
+	ST7735_InitR(INITR_REDTAB);
+	displayWeatherIcon(955);
+}
+
+void sensorMain(void) {
+	DisableInterrupts();
+	PLL_Init(Bus80MHz);
+	PortF_Init();
+	Sensor_Init();
+	SysTick_Init();
+	EnableInterrupts();
 	
 	while(1) {
-		
+	SysTick_Wait(4800000);
+		if(Check_For_Movement()) {
+			PF1 = 0x00;
+		}
+		else {
+			PF1 = 0x02;
+		}
 	}
- }
 	
+}
+
+
+int main(void) {
+	DisableInterrupts();
+	PortF_Init();
+	PLL_Init(Bus80MHz);
+	Switches_Init();
+	PF1 = 0x00;
+	EnableInterrupts();
+	
+	while(1) {}
+	
+}

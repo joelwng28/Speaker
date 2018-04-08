@@ -9,16 +9,14 @@
 
 #include "../inc/tm4c123gh6pm.h"
 #include <stdint.h>
-#include "Music.h"
-#include "Main.h"
-#include "SysTick.h"
-#include "ADCSWTrigger.h"
 
 
-#define PE4 (*((volatile uint32_t *)0x40024040))
-#define PB4 (*((volatile uint32_t *)0x40005040))
-#define PC4 (*((volatile uint32_t *)0x40006040))
-#define PD1 (*((volatile uint32_t *)0x40007008))
+#define PE3 (*((volatile uint32_t *)0x40024020))
+#define PB3 (*((volatile uint32_t *)0x40005020))
+#define PC6 (*((volatile uint32_t *)0x40006100))
+#define PD2 (*((volatile uint32_t *)0x40007010))
+	
+#define PF1 (*((volatile uint32_t *)0x40025008))
 
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
@@ -32,8 +30,6 @@ static uint8_t PCIntFlag = 0;
 static uint8_t PBIntFlag = 0;
 static uint8_t PDIntFlag = 0;
 
-static uint8_t Play_Mode = 0; // high = currently playing
-
 //registers for holding previous state of ports to ensure no debouncing
 volatile static unsigned long PELast;
 volatile static unsigned long PCLast;
@@ -45,20 +41,20 @@ volatile static unsigned long PDLast;
 //  Initializes one-shot 20ms timer for debouncing
 //  Inputs: None
 //  Output: none
-static void Timer0Arm(void){
-	SYSCTL_RCGCTIMER_R |= 0x01;
-  TIMER0_CTL_R = 0x00000000;    // 1) disable TIMER0A during setup
-  TIMER0_CFG_R = 0x00000000;    // 2) configure for 32-bit mode
-  TIMER0_TAMR_R = 0x0000001;    // 3) 1-SHOT mode
-  TIMER0_TAILR_R = 320000;      // 4) 20ms reload value
-  TIMER0_TAPR_R = 0;            // 5) bus clock resolution
-  TIMER0_ICR_R = 0x00000001;    // 6) clear TIMER0A timeout flag
-  TIMER0_IMR_R = 0x00000001;    // 7) arm timeout interrupt
-  NVIC_PRI4_R = (NVIC_PRI4_R&0x00FFFFFF)|0x80000000; // 8) priority 4
+static void Timer3Arm(void){
+	SYSCTL_RCGCTIMER_R |= 0x08;
+  TIMER3_CTL_R = 0x00000000;    // 1) disable TIMER3A during setup
+  TIMER3_CFG_R = 0x00000000;    // 2) configure for 32-bit mode
+  TIMER3_TAMR_R = 0x0000001;    // 3) 1-SHOT mode
+  TIMER3_TAILR_R = 320000;      // 4) 20ms reload value
+  TIMER3_TAPR_R = 0;            // 5) bus clock resolution
+  TIMER3_ICR_R = 0x00000001;    // 6) clear TIMER0A timeout flag
+  TIMER3_IMR_R = 0x00000001;    // 7) arm timeout interrupt
+  NVIC_PRI8_R = (NVIC_PRI8_R&0x00FFFFFF)|0x80000000; // 8) priority 4
 // interrupts enabled in the main program after all devices initialized
 // vector number 35, interrupt number 19
-  NVIC_EN0_R = 1<<19;           // 9) enable IRQ 19 in NVIC
-  TIMER0_CTL_R = 0x00000001;    // 10) enable TIMER0A
+  NVIC_EN1_R = 1<<(35-32);      // 9) enable IRQ 35 in NVIC
+  TIMER3_CTL_R = 0x00000001;    // 10) enable TIMER0A
 	
 }
 
@@ -68,36 +64,36 @@ static void Timer0Arm(void){
 //  Output: none
 void GPIOArm(void) {
 	if(PEIntFlag) {
-		PELast = PE4;					//switch state
+		PELast = PE3;					//switch state
 		PEIntFlag = 0;
-		GPIO_PORTE_ICR_R = 0x10;      //clear flag4
-		GPIO_PORTE_IM_R |= 0x10;      //arm interrupt on PE4 
+		GPIO_PORTE_ICR_R = 0x08;      //clear flag3
+		GPIO_PORTE_IM_R |= 0x08;      //arm interrupt on PE3
 		NVIC_PRI1_R = (NVIC_PRI1_R&0xFFFFFF00) | 0x000000A0;	//PortE priority = 5
 
 	}
 	else if(PCIntFlag) {
-		PCLast = PC4;					//switch state
+		PCLast = PC6;					//switch state
 		PCIntFlag = 0;
-		GPIO_PORTC_ICR_R = 0x10;      //clear flag4
-		GPIO_PORTC_IM_R |= 0x10;      //arm interrupt on PC4 
+		GPIO_PORTC_ICR_R = 0x40;      //clear flag6
+		GPIO_PORTC_IM_R |= 0x40;      //arm interrupt on PC6
 		NVIC_PRI0_R = (NVIC_PRI0_R&0xFF00FFFF) | 0x00A00000; 	//PortC priority = 5
 
 	}
 	else if(PBIntFlag) {
-		PBLast = PB4;					//switch state
+		PBLast = PB3;					//switch state
 		PBIntFlag = 0;
-		GPIO_PORTB_ICR_R = 0x10;      //clear flag4
-		GPIO_PORTB_IM_R |= 0x10;      //arm interrupt on PB4 
+		GPIO_PORTB_ICR_R = 0x08;      //clear flag3
+		GPIO_PORTB_IM_R |= 0x08;      //arm interrupt on PB3 
 
 		NVIC_PRI0_R = (NVIC_PRI0_R&0xFFFF00FF) | 0x0000A000; 	//PortB priority = 5
 		
 	}
 	
 	else if(PDIntFlag) {
-		PDLast = PD1;					//switch state
+		PDLast = PD2;					//switch state
 		PDIntFlag = 0;
-		GPIO_PORTD_ICR_R = 0x02;      //clear flag4
-		GPIO_PORTD_IM_R |= 0x02;      //arm interrupt on PD1 
+		GPIO_PORTD_ICR_R = 0x04;      //clear flag2
+		GPIO_PORTD_IM_R |= 0x04;      //arm interrupt on PD2 
 
 		NVIC_PRI0_R = (NVIC_PRI0_R&0x00FFFFFF) | 0xA0000000; 	//PortD priority = 5
 		
@@ -108,8 +104,8 @@ void GPIOArm(void) {
 //  Disarms Timer0A and reeanbles appropriate switch interrupt
 //  Inputs: None
 //  Output: none
-void Timer0A_Handler(void){
-  TIMER0_IMR_R = 0x00000000;    	// disarm timeout interrupt
+void Timer3A_Handler(void){
+  TIMER3_IMR_R = 0x00000000;    	// disarm timeout interrupt
   GPIOArm();   										// start GPIO
 }
 
@@ -119,47 +115,47 @@ void Timer0A_Handler(void){
 //  Inputs: None
 //  Output: none
 void Switches_Init(void) {
-	//initialize PE4 (this will be the switch for "Select")
 	SYSCTL_RCGCGPIO_R |= 0x16; 	//activate clock for Port E and Port C and Port B
 	SYSCTL_RCGCGPIO_R |= 0x08; 	//activate clock for Port D
-	GPIO_PORTE_DIR_R &= ~0x10; 	//make PE4 in
-	GPIO_PORTE_DEN_R |= 0x10;		//digital enable PE4
-	GPIO_PORTE_AFSEL_R &= ~0x10; 	// disable alt funct on PE4
-	GPIO_PORTE_AMSEL_R &= ~0x10;	// disable analog on PE4
-	GPIO_PORTE_PCTL_R &= ~0x000F0000; // configure PE4 as GPIO
-	GPIO_PORTE_IS_R &= ~0x10;		//PE4 is edge sensitive
-	GPIO_PORTE_IBE_R |= 0x10;	//PE4 is both edges
-	GPIO_PORTE_IM_R |= 0x10; 		//arm interrupt on PE4
+	//initialize PE3
+	GPIO_PORTE_DIR_R &= ~0x08; 	//make PE3 in
+	GPIO_PORTE_DEN_R |= 0x08;		//digital enable PE3
+	GPIO_PORTE_AFSEL_R &= ~0x08; 	// disable alt funct on PE3
+	GPIO_PORTE_AMSEL_R &= ~0x08;	// disable analog on PE3
+	GPIO_PORTE_PCTL_R &= ~0x000F000; // configure PE3 as GPIO
+	GPIO_PORTE_IS_R &= ~0x08;		//PE3 is edge sensitive
+	GPIO_PORTE_IBE_R |= 0x08;	//PE3 is both edges
+	GPIO_PORTE_IM_R |= 0x08; 		//arm interrupt on PE3
 	NVIC_PRI1_R = (NVIC_PRI1_R&0xFFFFFF00) | 0x000000A0;	//PortE priority = 5
-	//initialize PC4 (this will be the switch for "Up")
-	GPIO_PORTC_DIR_R &= ~0x10; 	//make PC4 in
-	GPIO_PORTC_DEN_R |= 0x10;		//digital enable PC4
-	GPIO_PORTC_AFSEL_R &= ~0x10; 	// disable alt funct on PC4
-	GPIO_PORTC_AMSEL_R &= ~0x10;	// disable analog on PC4
-	GPIO_PORTC_PCTL_R &= ~0x000F0000; // configure PE4 as GPIO
-	GPIO_PORTC_IS_R &= ~0x10;		//PC4 is edge sensitive
-	GPIO_PORTC_IBE_R |= 0x10;	//PC4 is both edges
-	GPIO_PORTC_IM_R |= 0x10; 		//arm interrupt on PC4
+	//initialize PC6 
+	GPIO_PORTC_DIR_R &= ~0x40; 	//make PC6 in
+	GPIO_PORTC_DEN_R |= 0x40;		//digital enable PC6
+	GPIO_PORTC_AFSEL_R &= ~0x40; 	// disable alt funct on PC6
+	GPIO_PORTC_AMSEL_R &= ~0x40;	// disable analog on PC6
+	GPIO_PORTC_PCTL_R &= ~0x0F000000; // configure PC6 as GPIO
+	GPIO_PORTC_IS_R &= ~0x40;		//PC6 is edge sensitive
+	GPIO_PORTC_IBE_R |= 0x40;	//PC6 is both edges
+	GPIO_PORTC_IM_R |= 0x40; 		//arm interrupt on PC6
 	NVIC_PRI0_R = (NVIC_PRI0_R&0xFF00FFFF) | 0x00A00000; 	//PortC priority = 5
-	//initialize PB4 (this will be the siwtch for "Down")
-	GPIO_PORTB_DIR_R &= ~0x10; 	//make PB4 in
-	GPIO_PORTB_DEN_R |= 0x10;		//digital enable PB4
-	GPIO_PORTB_AFSEL_R &= ~0x10; 	// disable alt funct on PB4
-	GPIO_PORTB_AMSEL_R &= ~0x10;	// disable analog on PB4
-	GPIO_PORTB_PCTL_R &= ~0x000F0000; // configure PB4 as GPIO
-	GPIO_PORTB_IS_R &= ~0x10;		//PB4 is edge sensitive
-	GPIO_PORTB_IBE_R |= 0x10;	//PB4 is both edges
-	GPIO_PORTB_IM_R |= 0x10; 		//arm interrupt on PB4
+	//initialize PB3
+	GPIO_PORTB_DIR_R &= ~0x08; 	//make PB3 in
+	GPIO_PORTB_DEN_R |= 0x08;		//digital enable PB3
+	GPIO_PORTB_AFSEL_R &= ~0x08; 	// disable alt funct on PB3
+	GPIO_PORTB_AMSEL_R &= ~0x08;	// disable analog on PB3
+	GPIO_PORTB_PCTL_R &= ~0x000F000; // configure PB3 as GPIO
+	GPIO_PORTB_IS_R &= ~0x08;		//PB3 is edge sensitive
+	GPIO_PORTB_IBE_R |= 0x08;	//PB3 is both edges
+	GPIO_PORTB_IM_R |= 0x08; 		//arm interrupt on PB3
 	NVIC_PRI0_R = (NVIC_PRI0_R&0xFFFF00FF) | 0x0000A000; 	//PortB priority = 5
-	//initialize PD1
-	GPIO_PORTD_DIR_R &= ~0x02; 	//make PD1 in
-	GPIO_PORTD_DEN_R |= 0x02;		//digital enable PD1
-	GPIO_PORTD_AFSEL_R &= ~0x02; 	// disable alt funct on PD1
-	GPIO_PORTD_AMSEL_R &= ~0x02;	// disable analog on PD1
-	GPIO_PORTD_PCTL_R &= ~0x000000F0; // configure PD1 as GPIO
-	GPIO_PORTD_IS_R &= ~0x02;		//PD1 is edge sensitive
-	GPIO_PORTD_IBE_R |= 0x02;	//PD1 is both edges
-	GPIO_PORTD_IM_R |= 0x02; 		//arm interrupt on PD1
+	//initialize PD2
+	GPIO_PORTD_DIR_R &= ~0x04; 	//make PD2 in
+	GPIO_PORTD_DEN_R |= 0x04;		//digital enable PD2
+	GPIO_PORTD_AFSEL_R &= ~0x04; 	// disable alt funct on PD2
+	GPIO_PORTD_AMSEL_R &= ~0x04;	// disable analog on PD2
+	GPIO_PORTD_PCTL_R &= ~0x00000F00; // configure PD2 as GPIO
+	GPIO_PORTD_IS_R &= ~0x04;		//PD2 is edge sensitive
+	GPIO_PORTD_IBE_R |= 0x04;	//PD2 is both edges
+	GPIO_PORTD_IM_R |= 0x04; 		//arm interrupt on PD2
 	NVIC_PRI0_R = (NVIC_PRI0_R&0x00FFFFFF) | 0xA0000000; 	//PortD priority = 5
 	
 	NVIC_EN0_R = 16;				//Enable interrupts for PortE
@@ -167,144 +163,100 @@ void Switches_Init(void) {
 	NVIC_EN0_R = 4;				//Enable interrupts for PortC
 	NVIC_EN0_R = 2;				//Enable interrupts for PortB
 
-	PELast = PE4;					//Set initial state
-	PBLast = PB4;					//Set initial state
-	PCLast = PC4;					//Set initial state
-	PDLast = PD1;					//Set initial state
+	PELast = PE3;					//Set initial state
+	PBLast = PB3;					//Set initial state
+	PCLast = PC6;					//Set initial state
+	PDLast = PD2;					//Set initial state
 }
 
 long sr;	//for critical sections
 
-//*************Play********************************************
-//  Plays music if music was paused
-//  Inputs: None
-//  Output: none
-void Play(void) {
-	Play_Mode = 1;
-	//initialize timers to begin playing
-	
-	TIMER1_CTL_R = 0x01;
-	NVIC_ST_RELOAD_R = 80000000 / (global_Song.notes[noteIndex].pitch*64);
-	NVIC_ST_CTRL_R = 0x7;
+
+void Up(void) {
+	PF1 ^= 0x02;
 }
 
-//*************Pause********************************************
-// Pauses music
-//  Inputs: None
-//  Output: none
-void Pause(void) {
-	Play_Mode = 0;
-	
-	//disable interrupts
-	NVIC_ST_CTRL_R = 0x0;
-	TIMER1_CTL_R = 0x00000000;
-}
-//*************Rewind********************************************
-//  Play music from the start
-//  Inputs: None
-//  Output: none
-void Rewind(void) {
-	Pause();
-	noteIndex = 0;
-	NVIC_ST_RELOAD_R = 80000000 / (global_Song.notes[noteIndex].pitch*64);
-	duration_Counter = 0;
+
+void Down(void) {
+	PF1 ^= 0x02;
 }
 
-//*************Mode********************************************
-//  Changes the voice/instrument of the sound
-//  Inputs: None
-//  Output: none
-void Mode(void) {
-	if(instrument_Mode != 4) {
-		instrument_Mode++;
-	}
-	else {
-		instrument_Mode = 0;
-	}
-	
+
+void Select(void) {
+	PF1 ^= 0x02;
 }
 
-//*************SetPointWADC********************************************
-//  use ADC value to set where music starts up
-//  Inputs: None
-//  Output: none
-void SetPointWADC(void) {
-	uint32_t adcSample = ADC0_InSeq3();
-	duration_Counter = 0;
-	noteIndex = (adcSample * global_Song.note_Num)/4096;
-	NVIC_ST_RELOAD_R = 80000000 / (global_Song.notes[noteIndex].pitch*64);
-	
+void Music(void) {
+	PF1 ^= 0x02;
 }
-
 
 //*************GPIOPortE_Handler********************************************
-//  Completes Play/Pause Functionality
+//  Completes Up Functionality
 //  Inputs: None
 //  Output: none
 void GPIOPortE_Handler(void) {
-	GPIO_PORTE_IM_R &= ~0x10;		//disarm intterupt on PE4
+	GPIO_PORTE_IM_R &= ~0x08;		//disarm intterupt on PE3
 	PEIntFlag = 1;
 	if(!PELast) {
 		sr = StartCritical();						//start critical section
-		if(Play_Mode == 0){ Play(); }
-		else if(Play_Mode == 1) { Pause(); }
+		Up();
 		
 		EndCritical(sr);						//end critical section
 	}
 	else {}
 	
-	Timer0Arm();								//start one shot
+	Timer3Arm();								//start one shot
 }
 
 //*************GPIOPortC_Handler********************************************
-//  Completes Rewinds Functionality
+//  Completes Down Functionality
 //  Inputs: None
 //  Output: none
 void GPIOPortC_Handler(void) {
-	GPIO_PORTC_IM_R &= ~0x10;		//disarm intterupt on PC4
+	GPIO_PORTC_IM_R &= ~0x40;		//disarm intterupt on PC6
 	PCIntFlag = 1;
 	if(!PCLast) {
 		sr = StartCritical();						//start critical section
-		Rewind();
+		Down();
 		EndCritical(sr);				//end critical section
 	}
 	else {}
 	
-	Timer0Arm();								//start one shot
+	Timer3Arm();								//start one shot
 }
 
 //*************GPIOPortB_Handler********************************************
-//  Completes Change Mode Functionality
+//  Completes Select Functionality
 //  Inputs: None
 //  Output: none
 void GPIOPortB_Handler(void) {
-	GPIO_PORTB_IM_R &= ~0x10;		//disarm intterupt on PB4
+	GPIO_PORTB_IM_R &= ~0x08;		//disarm intterupt on PB3
 	PBIntFlag = 1;
 	if(!PBLast) {
 		sr = StartCritical();						//start critical section
-		Mode();
+		Select();
 		EndCritical(sr);						//end critical section
 	}
 	else {}
 	
-	Timer0Arm();								//start one shot
+	Timer3Arm();								//start one shot
 }
 
 //*************GPIOPortD_Handler********************************************
-//  Completes Set ADC Functionality
+//  Completes Music Functionality
 //  Inputs: None
 //  Output: none
 void GPIOPortD_Handler(void) {
-	GPIO_PORTD_IM_R &= ~0x02;		//disarm intterupt on PB4
+	GPIO_PORTD_IM_R &= ~0x04;		//disarm intterupt on PD2
 	PDIntFlag = 1;
 	if(!PDLast) {
 		sr = StartCritical();						//start critical section
-		SetPointWADC();
+		Music();
 		EndCritical(sr);						//end critical section
 	}
 	else {}
 	
-	Timer0Arm();								//start one shot
+	Timer3Arm();								//start one shot
 }
 
 

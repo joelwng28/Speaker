@@ -1,10 +1,9 @@
 /* ******** Switch.h ************** 
  * Samuel Zhang, Zi Zhou Wang
- * 2/20/2018
+ * 3/28/2018
  * switch init, debouncing, and function control
- * Lab 5
+ * Final Lab
  * Saadallah
- * 2/20/2018
  */
 
 //*************Switches_Init********************************************
@@ -13,26 +12,23 @@
 //  Output: none
 void Switches_Init(void);
 
-//*************Pause********************************************
-// Pauses music
+//*************Up********************************************
 //  Inputs: None
 //  Output: none
-void Pause(void);
+void Up(void);
 
-//*************Play********************************************
-//  Plays music if music was paused
+//*************Down********************************************
 //  Inputs: None
 //  Output: none
-void Play(void);
+void Down(void);
 
-//*************Mode********************************************
-//  Changes the voice/instrument of the sound
+//*************Select********************************************
 //  Inputs: None
 //  Output: none
-void Mode(void);
+void Select(void);
 
-//*************Rewind********************************************
-//  Play music from the start
+//*************Music********************************************
+// Goes to music screen for quick access
 //  Inputs: None
 //  Output: none
-void Rewind(void);
+void Music(void);

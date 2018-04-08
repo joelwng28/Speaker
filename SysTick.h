@@ -41,5 +41,4 @@ void SysTick_Wait(uint32_t delay);
 // This assumes 50 MHz system clock.
 void SysTick_Wait10ms(uint32_t delay);
 
-extern uint8_t instrument_Mode;
 

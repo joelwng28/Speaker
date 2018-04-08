@@ -1,4 +1,4 @@
-// Timer1.h
+// Timer2.h
 // Runs on LM4F120/TM4C123
 // Use Timer1 in 32-bit periodic mode to request interrupts at a periodic rate
 // Daniel Valvano
@@ -22,14 +22,14 @@
  http://users.ece.utexas.edu/~valvano/
  */
 
-#ifndef __TIMER1INTS_H__ // do not include more than once
-#define __TIMER1INTS_H__
+#ifndef __TIMER2INTS_H__ // do not include more than once
+#define __TIMER2INTS_H__
 
-// ***************** Timer1_Init ****************
-// Activate Timer1 interrupts to run user task periodically
-// Inputs:  task is a pointer to a user function
-//          period in units (1/clockfreq)
+// ***************** Timer2_Init ****************
+// Activate Timer2 interrupts to run user task periodically
+// Inputs:  none
 // Outputs: none
-void Timer1_Init(void(*task)(void), uint32_t period);
+void Timer2_Init();
 
 #endif // __TIMER2INTS_H__
+

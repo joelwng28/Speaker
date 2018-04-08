@@ -1,8 +1,8 @@
 // Music.h
 // Store music file representations and note processing
-// Lab 5
+// Final Lab
 // Samuel Zhang and Joel Wang
-// 2/19/18
+// 3/28/18
 
 #include <stdint.h>
 // if desired interrupt frequency is f, Timer1A_Init parameter is busfrequency/f
@@ -135,14 +135,11 @@ typedef struct {
 	Note *notes;       //all of the notes in the song
 } Song;
 
-extern Note BeautyAndTheBeastL[];
 extern uint32_t noteIndex;
 extern uint16_t duration_Counter;
-extern Note mary_lamb[];
-extern Note ff7_pre[];
 
 //*************ProcessNote********************************************
-//  Incremenet through music based on initialized reload value in Timer1 and set pitch
+//  Increment through music based on initialized reload value in Timer1 and set pitch
 //  Inputs: None
 //  Output: none
 void ProcessNote(void);
